@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fed Rate Tracker Dashboard</title>
+    <!-- Include Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Include Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            background-color: #0D0907; /* Crow */
+            color: #b8b8b8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        header {
+            border-bottom: 1px solid #3B3131 !important; /* Oil */
+        }
+        .card {
+            background-color: #212122; /* Ink Black */
+            border: 1px solid #3B3131; /* Oil */
+            color: #b8b8b8;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+        }
+        .table {
+            color: #b8b8b8;
+            background-color: #212122;
+            margin-bottom: 0;
+        }
+        .table > thead th {
+            background-color: #3B3131 !important; /* Oil */
+            color: #c4c4c4 !important;
+            border-bottom: 2px solid #212122;
+        }
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background-color: #1A1A1B;
+            color: #b8b8b8;
+        }
+        .table-striped > tbody > tr:nth-of-type(even) > * {
+            background-color: #212122;
+            color: #b8b8b8;
+        }
+        .table-hover > tbody > tr:hover > * {
+            background-color: #3B3131;
+            color: #d4d4d4;
+        }
+        .table > tbody > tr > td {
+            border-color: #3B3131; /* Oil */
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-4">
+        <header class="pb-3 mb-4 d-flex justify-content-between align-items-center">
+            <h1 class="h3" style="color: #c4c4c4;">Fed Rate Tracker Dashboard</h1>
+            <span class="small" style="color: #8c8c8c;">Last Updated: {{ last_updated }}</span>
+        </header>
+
+        <!-- Bull / Bear Case Section -->
+        {% if bull_bear_data %}
+        <div class="row g-4 mb-4">
+            <div class="col-lg-12">
+                <div class="card p-4" style="background-color: #171321; border: 1px solid #3B3131;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="m-0" style="color: #c4c4c4; font-weight: bold;">BULL / BEAR CASE</h5>
+                        <span class="small" style="color: #8c8c8c;">{{ bull_bear_data.date_range }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <span style="color: #b8b8b8;">Cut probability: </span>
+                        <span style="color: #f39c12; font-weight: bold;">{{ bull_bear_data.cut_probability }}</span> 
+                        <span class="small" style="color: #8c8c8c;">{{ bull_bear_data.hold_hike_text }}</span>
+                    </div>
+
+                    <!-- Bull Case Box -->
+                    <div class="p-3 mb-3 rounded" style="background-color: #211B2E; border-left: 4px solid #27ae60;">
+                        <h6 style="color: #2ecc71; font-weight: bold;">↓ Bull Case — Cut</h6>
+                        <ul class="mb-0 ps-3" style="color: #b8b8b8;">
+                            {% for item in bull_bear_data.bull_items %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Bear Case Box -->
+                    <div class="p-3 rounded" style="background-color: #211B2E; border-left: 4px solid #e67e22;">
+                        <h6 style="color: #f39c12; font-weight: bold;">↑ Bear Case — Hold/Hike</h6>
+                        <ul class="mb-0 ps-3" style="color: #b8b8b8;">
+                            {% for item in bull_bear_data.bear_items %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="mt-3 small" style="color: #7c7c7c; font-style: italic;">
+                        Cases update automatically as economic data prints. Bayesian model adjusts probabilities in real time.
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Plotly Chart Section -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-12">
+                <div class="card p-3">
+                    <div id="plotly-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cross-Market Divergence Table Section -->
+        {% if divergence_data %}
+        <div class="row g-4 mb-4">
+            <div class="col-lg-12">
+                <div class="card p-3">
+                    <h5 class="card-title mb-3" style="color: #c4c4c4;">Cross-Market Divergence</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    {% for col in divergence_columns %}
+                                    <th>{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in divergence_data %}
+                                <tr>
+                                    {% for col in divergence_columns %}
+                                    <td>{{ row[col] }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Rate Probability / Historical Daily Closes Table Section -->
+        <div class="row g-4">
+            <div class="col-lg-12">
+                <div class="card p-3">
+                    <h5 class="card-title mb-3" style="color: #c4c4c4;">Rate Probability</h5>
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-striped table-hover align-middle" id="rate-probability-table">
+                            <thead>
+                                <tr>
+                                    {% for col in table_columns %}
+                                    <th>{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in table_data %}
+                                <tr>
+                                    {% for col in table_columns %}
+                                    <td>{{ row[col] }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const table = document.getElementById('rate-probability-table');
+            if (!table) return;
+
+            const rows = table.querySelectorAll('tbody tr');
+            const days = [];
+            const kalshi = [];
+            const polymarket = [];
+            const futures = [];
+
+            // Read from bottom to top (reverse) to plot chronologically
+            const rowArray = Array.from(rows).reverse();
+
+            rowArray.forEach(row => {
+                const cols = row.querySelectorAll('td');
+                if (cols.length >= 4) {
+                    days.push(cols[0].innerText.trim());
+                    kalshi.push(parseFloat(cols[1].innerText.replace('%', '').trim()) || 0);
+                    polymarket.push(parseFloat(cols[2].innerText.replace('%', '').trim()) || 0);
+                    futures.push(parseFloat(cols[3].innerText.replace('%', '').trim()) || 0);
+                }
+            });
+
+            const traces = [
+                {
+                    x: days,
+                    y: kalshi,
+                    mode: 'lines+markers',
+                    name: 'Kalshi',
+                    line: { color: '#2ca02c', width: 2.5 }
+                },
+                {
+                    x: days,
+                    y: polymarket,
+                    mode: 'lines+markers',
+                    name: 'Polymarket',
+                    line: { color: '#1f77b4', width: 2.5 }
+                },
+                {
+                    x: days,
+                    y: futures,
+                    mode: 'lines+markers',
+                    name: 'Futures',
+                    line: { color: '#a0522d', width: 2.5 }
+                }
+            ];
+
+            const layout = {
+                title: { text: '<b>Three Venues, Day by Day (25bp Hike)</b>', font: { size: 18 } },
+                xaxis: { title: '<b>Day</b>' },
+                yaxis: { title: '<b>Probability (%)</b>' },
+                template: 'plotly_dark',
+                paper_bgcolor: '#212122',
+                plot_bgcolor: '#212122',
+                hovermode: 'x unified',
+                legend: { orientation: 'h', yanchor: 'bottom', y: 1.02, xanchor: 'right', x: 1 },
+                margin: { l: 40, r: 40, t: 60, b: 40 }
+            };
+
+            Plotly.newPlot('plotly-chart', traces, layout, {responsive: true});
+        });
+    </script>
+</body>
+</html>
